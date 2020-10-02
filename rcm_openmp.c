@@ -81,6 +81,7 @@ int* rcm(int *row,int *col, int n){
     int* neighbours_deg = malloc(n*sizeof(int));//Will be overwritten every time
 
     //Generate Degrees and initialize visited
+    #pragma omp parallel for
     for(i=0;i<n;i++){
         visited[i] = 0;
         degrees[i] = row[i+1]-row[i];
