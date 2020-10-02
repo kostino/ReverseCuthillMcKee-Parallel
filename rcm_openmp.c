@@ -81,20 +81,35 @@ int* rcm(int *row,int *col, int n){
     int* neighbours_deg = malloc(n*sizeof(int));//Will be overwritten every time
 
     //Generate Degrees and initialize visited
-    #pragma omp parallel for
+    #pragma omp parallel for private(i)
     for(i=0;i<n;i++){
         visited[i] = 0;
         degrees[i] = row[i+1]-row[i];
     }
     int finished = 0;
     while(!finished){
+
+
         //find minimum degree
         min_deg = n+1;//Degree<n
         min_index = -1;
-        for(int i=0;i<n;i++){
-            if(degrees[i]<min_deg){
-                min_deg=degrees[i];
-                min_index=i;
+        #pragma omp parallel
+        {
+            int local_min = min_deg;
+            int local_index = min_index;
+            #pragma omp for nowait
+            for(int i=0;i<n;i++){
+                if(degrees[i]<local_min){
+                    local_min=degrees[i];
+                    local_index=i;
+                }
+            }   
+            #pragma omp critical
+            {
+                if(local_min < min_deg){
+                    min_deg = local_min;
+                    min_index = local_index;
+                }
             }
         }
 
@@ -109,14 +124,18 @@ int* rcm(int *row,int *col, int n){
             res_index++;
             n_count = 0;
             //find neighbours (in cols array in indices row[i] to row[i+1])
+            #pragma omp parallel for private(i)
             for(i=row[parent];i<row[parent+1];i++){
                 int neighbour = col[i];
                 //if visited skip else take him
                 if(!visited[neighbour]){
-                    neighbours[n_count] = neighbour;
-                    neighbours_deg[n_count] = degrees[neighbour];
-                    visited[neighbour] = 1;
-                    n_count++;
+                    #pragma omp critical
+                    {
+                        neighbours[n_count] = neighbour;
+                        neighbours_deg[n_count] = degrees[neighbour];
+                        visited[neighbour] = 1;
+                        n_count++;
+                    }
                 }
             }
             my_mergesort(neighbours_deg,neighbours,0,n_count-1);
@@ -125,6 +144,7 @@ int* rcm(int *row,int *col, int n){
             }
         }
         finished = 1;
+        #pragma omp parallel for private(i)
         for(i=0;i<n;i++){
             if(!visited[i]){
                 finished=0;
@@ -150,10 +170,11 @@ int* rcm(int *row,int *col, int n){
 int main(){
     //check for correct algorithm we compare by hand results with matlab function result,
     //benches are done with larger arrays
-    //int row[] = { 0,3,7,9,12,17,19,22,24,27,30 };
-    //int col[] = { 1,6,8,0,4,6,9,4,6,4,5,8,1,2,3,5,9,3,4,0,1,2,8,9,0,3,7,1,4,7 };
+    int row[] = { 0,3,7,9,12,17,19,22,24,27,30 };
+    int col[] = { 1,6,8,0,4,6,9,4,6,4,5,8,1,2,3,5,9,3,4,0,1,2,8,9,0,3,7,1,4,7 };
+    int n=10;
     struct timeval start,end;
-    int n_r = 44610;
+    /*int n_r = 44610;
     int n_c = 2014701;
     int n = 44609;
     int* row = malloc(n_r*sizeof(int));
@@ -171,7 +192,7 @@ int main(){
         return -1;
     fread(col,sizeof(int),n_c,f);
     fclose(f);
-
+*/
 
     int* r =malloc(n*sizeof(int));
     
@@ -179,10 +200,10 @@ int main(){
     r=rcm(row,col,n);
     gettimeofday(&end,NULL);
 
-    /* int i;
+    int i;
     for(i=0;i<n;i++){
         printf("%d\n",r[i]);
-    }*/
+    }
     printf("\n");
     printf("TIME=%ld\n",end.tv_usec-start.tv_usec+1000000*(end.tv_sec-start.tv_sec));
     return 0;

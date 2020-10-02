@@ -149,9 +149,11 @@ int* rcm(int *row,int *col, int n){
 int main(){
     //check for correct algorithm we compare by hand results with matlab function result,
     //benches are done with larger arrays
-    //int row[] = { 0,3,7,9,12,17,19,22,24,27,30 };
-    //int col[] = { 1,6,8,0,4,6,9,4,6,4,5,8,1,2,3,5,9,3,4,0,1,2,8,9,0,3,7,1,4,7 };
+    int row[] = { 0,3,7,9,12,17,19,22,24,27,30 };
+    int col[] = { 1,6,8,0,4,6,9,4,6,4,5,8,1,2,3,5,9,3,4,0,1,2,8,9,0,3,7,1,4,7 };
+    int n=10;
     struct timeval start,end;
+    /*
     int n_r = 44610;
     int n_c = 2014701;
     int n = 44609;
@@ -170,7 +172,7 @@ int main(){
         return -1;
     fread(col,sizeof(int),n_c,f);
     fclose(f);
-
+    */
 
     int* r =malloc(n*sizeof(int));
     
@@ -178,10 +180,10 @@ int main(){
     r=rcm(row,col,n);
     gettimeofday(&end,NULL);
 
-    /* int i;
+    int i;
     for(i=0;i<n;i++){
         printf("%d\n",r[i]);
-    }*/
+    } 
     printf("\n");
     printf("TIME=%ld\n",end.tv_usec-start.tv_usec+1000000*(end.tv_sec-start.tv_sec));
     return 0;
