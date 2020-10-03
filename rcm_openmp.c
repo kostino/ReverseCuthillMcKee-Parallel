@@ -160,17 +160,23 @@ int* rcm(int *row,int *col, int n){
             res_index++;
             n_count = 0;
             //find neighbours (in cols array in indices row[i] to row[i+1])
+            //omp here was worse for performance .... keep as comment for reference of attempt
+            // #pragma omp parallel for schedule(dynamic,chunk)
             for(i=row[parent];i<row[parent+1];i++){
                 int neighbour = col[i];
                 //if visited skip else take him
                 //no need to check for self: self is always visited
                 if(!visited[neighbour]){
+                        // #pragma omp critical
+                        // {
                         neighbours[n_count] = neighbour;
                         neighbours_deg[n_count] = degrees[neighbour];
                         visited[neighbour] = 1;
                         n_count++;
+                        //}
                 }
             }
+            //sort neighbours and add to queue
             my_mergesort(neighbours_deg,neighbours,0,n_count-1);
             for(i=0;i<n_count;i++){
                 queueAdd(q,neighbours[i]);

@@ -119,6 +119,7 @@ int* rcm(int *row,int *col, int n){
                     n_count++;
                 }
             }
+            //sort neighbours and add to queue
             my_mergesort(neighbours_deg,neighbours,0,n_count-1);
             for(i=0;i<n_count;i++){
                 queueAdd(q,neighbours[i]);
