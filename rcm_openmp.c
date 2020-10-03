@@ -12,15 +12,31 @@ void merge(int *deg,int *id, int l, int m, int r){
 
     int L[n1],R[n2];
     int id_L[n1],id_R[n2];
-
-
-    for(i=0;i<n1;i++){
-        L[i] = deg[l+i];
-        id_L[i] = id[l+i];
+    if(n1>100){
+    #pragma omp parallel for 
+        for(i=0;i<n1;i++){
+            L[i] = deg[l+i];
+            id_L[i] = id[l+i];
+        }
     }
-    for(j=0;j<n2;j++){
-        R[j] = deg[m+1+j];
-        id_R[j] = id[m+1+j];
+    else{
+        for(i=0;i<n1;i++){
+            L[i] = deg[l+i];
+            id_L[i] = id[l+i];
+        }
+    }
+    if(n2>100){
+    #pragma omp parallel for
+        for(j=0;j<n2;j++){
+            R[j] = deg[m+1+j];
+            id_R[j] = id[m+1+j];
+        }
+    }
+    else{
+        for(j=0;j<n2;j++){
+            R[j] = deg[m+1+j];
+            id_R[j] = id[m+1+j];
+        }
     }
     i=0;
     j=0;
@@ -57,11 +73,28 @@ void merge(int *deg,int *id, int l, int m, int r){
 void my_mergesort(int *deg, int *id,int l, int r){
     if(l<r){
         int m = l+(r-l)/2;
-        {
+        if(l-m>100){
+            #pragma omp parallel 
+            {
+                #pragma omp single 
+                {
+                    #pragma omp task
+                    my_mergesort(deg,id,l,m);
+
+                    my_mergesort(deg,id,m+1,r);
+                    
+                    #pragma omp taskwait 
+                    merge(deg,id,l,m,r);
+                }
+            }
+        }else{
             my_mergesort(deg,id,l,m);
+
             my_mergesort(deg,id,m+1,r);
+            
+            merge(deg,id,l,m,r);
         }
-        merge(deg,id,l,m,r);
+
     }
 }
 
@@ -69,7 +102,7 @@ void my_mergesort(int *deg, int *id,int l, int r){
 
 // Sparse matrix in CSR format for ease of gathering degrees and neighbours
 int* rcm(int *row,int *col, int n){
-
+    int chunk = n /omp_get_num_threads();
     int n_count=0;
     int i,j;
     int min_deg;
@@ -84,7 +117,7 @@ int* rcm(int *row,int *col, int n){
     int* neighbours_deg = malloc(n*sizeof(int));//Will be overwritten every time
 
     //Generate Degrees and initialize visited
-    #pragma omp parallel for private(i)
+    #pragma omp parallel for private(i) schedule(dynamic,chunk)
     for(i=0;i<n;i++){
         visited[i] = 0;
         degrees[i] = row[i+1]-row[i];
@@ -96,11 +129,11 @@ int* rcm(int *row,int *col, int n){
         //find minimum degree
         min_deg = n+1;//Degree<n
         min_index = -1;
-        #pragma omp parallel num_threads(8)
+        #pragma omp parallel
         {
             int local_min = min_deg;
             int local_index = min_index;
-            #pragma omp for nowait
+            #pragma omp for nowait schedule(dynamic,chunk)
             for(int i=0;i<n;i++){
                 if(degrees[i]<local_min&&visited[i]==0){
                     local_min=degrees[i];
@@ -127,21 +160,15 @@ int* rcm(int *row,int *col, int n){
             res_index++;
             n_count = 0;
             //find neighbours (in cols array in indices row[i] to row[i+1])
-            #pragma omp parallel for schedule(dynamic)
             for(i=row[parent];i<row[parent+1];i++){
                 int neighbour = col[i];
                 //if visited skip else take him
                 //no need to check for self: self is always visited
                 if(!visited[neighbour]){
-                    {
-                        #pragma omp critical
-                        {
-                            neighbours[n_count] = neighbour;
-                            neighbours_deg[n_count] = degrees[neighbour];
-                            visited[neighbour] = 1;
-                            n_count++;
-                        }
-                    }
+                        neighbours[n_count] = neighbour;
+                        neighbours_deg[n_count] = degrees[neighbour];
+                        visited[neighbour] = 1;
+                        n_count++;
                 }
             }
             my_mergesort(neighbours_deg,neighbours,0,n_count-1);
@@ -150,7 +177,7 @@ int* rcm(int *row,int *col, int n){
             }
         }
         finished = 1;
-        #pragma omp parallel for schedule(dynamic) private(i)
+        #pragma omp parallel for schedule(dynamic,chunk) private(i)
         for(i=0;i<n;i++){
             if(!visited[i]){
                 finished=0;
@@ -211,6 +238,11 @@ int main(){
         printf("%d\n",r[i]);
     }
     */
+    f=fopen("R.bin","rb");
+    if(f==NULL)
+        return -1;
+    fwrite(r,sizeof(int),n,f);
+    fclose(f);
     printf("\n");
     printf("TIME=%ld\n",end.tv_usec-start.tv_usec+1000000*(end.tv_sec-start.tv_sec));
     return 0;

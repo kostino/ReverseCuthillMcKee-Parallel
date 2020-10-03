@@ -186,6 +186,11 @@ int main(){
         printf("%d\n",r[i]);
     }
     */
+    f=fopen("R.bin","rb");
+    if(f==NULL)
+        return -1;
+    fwrite(r,sizeof(int),n,f);
+    fclose(f);
     printf("\n");
     printf("TIME=%ld\n",end.tv_usec-start.tv_usec+1000000*(end.tv_sec-start.tv_sec));
     return 0;
